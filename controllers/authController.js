@@ -1,82 +1,44 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import createHttpError from 'http-errors';
+import { registerUserService, loginUserService } from '../services/authServices.js';
 
 // Реєстрація нового користувача
-export const registerUser = async (req, res) => {
-    const { name, email, password } = req.body;
+export const registerUser = async (req, res, next) => {
+  const { name, email, password } = req.body;
 
-    try {
-        // Перевірка наявності користувача в базі даних
-        let user = await User.findOne({ email });
+  if (!name || !email || !password) {
+    return next(createHttpError(400, 'Name, email, and password are required'));
+  }
 
-        if (user) {
-            return res.status(400).json({ message: 'User already exists' });
-        }
+  try {
+    const userData = await registerUserService({ name, email, password });
 
-        // Створення нового користувача
-        user = new User({
-            name,
-            email,
-            password
-        });
-
-        // Хешування пароля
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(password, salt);
-
-        // Збереження користувача в базі даних
-        await user.save();
-
-        // Генерація JWT токена
-        const payload = {
-            user: {
-                id: user.id
-            }
-        };
-
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
-            if (err) throw err;
-            res.status(201).json({ token });
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+    res.status(201).json({
+      status: 201,
+      message: 'Successfully registered a user!',
+      data: userData,
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
 // Логінізація користувача
-export const loginUser = async (req, res) => {
-    const { email, password } = req.body;
+export const loginUser = async (req, res, next) => {
+  const { email, password } = req.body;
 
-    try {
-        // Пошук користувача в базі даних
-        let user = await User.findOne({ email });
+  if (!email || !password) {
+    return next(createHttpError(400, 'Email and password are required'));
+  }
 
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+  try {
+    const { accessToken } = await loginUserService({ email, password });
 
-        // Порівняння хеша пароля
-        const isMatch = await bcrypt.compare(password, user.password);
-
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid credentials' });
-        }
-
-        // Генерація JWT токена
-        const payload = {
-            user: {
-                id: user.id
-            }
-        };
-
-        jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
-            if (err) throw err;
-            res.json({ token });
-        });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
+    res.status(200).json({
+      status: 200,
+      message: 'Successfully logged in a user!',
+      data: { accessToken },
+    });
+  } catch (error) {
+    next(error);
+  }
 };
