@@ -16,4 +16,3 @@ registerSchema.methods.comparePassword = async function(candidatePassword) {
 const registerUser = mongoose.model('registerUser', registerSchema);
 
 export default registerUser;
-r
