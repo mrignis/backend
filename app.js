@@ -1,23 +1,27 @@
+// app.js
+
 import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
+import 'dotenv/config';
+import { errorHandler } from './middleware/errorHandler.js';
 import userRoutes from './routes/userRoutes.js';
 
-dotenv.config();
+const setupServer = () => {
+  const app = express();
 
-const app = express();
+  app.use(
+    express.json({
+      type: ['application/json', 'application/vnd.api+json'],
+    })
+  );
 
-// Middleware
-app.use(express.json());
-app.use(cors());
+  // Ваші маршрути
+  app.use('/users', userRoutes);
 
-// Routes
-app.use('/users', userRoutes);
+  // Підключення обробника помилок
+  app.use(errorHandler);
 
-const PORT = process.env.PORT || 3000;
-
-export const setupServer = () => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-    });
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
 };
+
+export { setupServer };

@@ -9,10 +9,12 @@ const router = express.Router();
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 
+
 // Приватні ендпоінти, захищені authMiddleware
+router.post('/refresh-tokens',authMiddleware, refreshTokens);
 router.get('/current', authMiddleware, getCurrentUser);
 router.put('/update', authMiddleware, updateUser);
-router.post('/refresh-tokens', authMiddleware, refreshTokens);
+
 router.post('/logout', authMiddleware, logoutUser);
 
 export default router;

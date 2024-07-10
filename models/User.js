@@ -14,11 +14,21 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    gender: String,
-    weight: Number,
-    activeSportsTime: Number,
-    dailyWaterIntake: Number,
-    avatar: String
+    gender: {
+        type: String
+    },
+    weight: {
+        type: Number
+    },
+    activeSportsTime: {
+        type: Number
+    },
+    dailyWaterIntake: {
+        type: Number
+    },
+    avatar: {
+        type: String
+    }
 });
 
 const User = mongoose.model('User', UserSchema);

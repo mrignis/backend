@@ -1,22 +1,45 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-dotenv.config();
+import createHttpError from 'http-errors';
+import User from '../models/User.js'; // Змініть шлях до моделі користувача на свій
 
-// Прошарок авторизації
-const authMiddleware = (req, res, next) => {
-    const token = req.header('x-auth-token');
+const JWT_SECRET = 'your_jwt_secret';
 
-    if (!token) {
-        return res.status(401).json({ message: 'No token, authorization denied' });
+// Функція для аутентифікації користувача за токеном
+export const authenticate = async (req, res, next) => {
+  // Отримуємо токен з заголовка Authorization
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  // Перевіряємо чи токен існує
+  if (!token) {
+    return next(createHttpError(401, 'Access token is missing'));
+  }
+
+  try {
+    // Перевіряємо та декодуємо токен
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Отримуємо користувача за ID, який міститься у токені
+    const user = await User.findById(decoded.userId);
+
+    // Перевіряємо чи користувач знайдений
+    if (!user) {
+      return next(createHttpError(404, 'User not found'));
     }
 
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.user;
-        next();
-    } catch (err) {
-        res.status(401).json({ message: 'Token is not valid' });
+    // Додаємо користувача до об'єкту запиту
+    req.user = user;
+
+    // Продовжуємо обробку запиту
+    next();
+  } catch (error) {
+    // Перехоплюємо помилки від jwt.verify
+    if (error.name === 'TokenExpiredError') {
+      return next(createHttpError(401, 'Access token expired'));
+    } else {
+      return next(createHttpError(401, 'Invalid access token'));
     }
+  }
 };
 
-export default authMiddleware;
+export default authenticate;
