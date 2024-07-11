@@ -1,97 +1,74 @@
-import User from '../models/User.js';
-import { saveFile } from '../cloudinary/saveFile.js';
 import jwt from 'jsonwebtoken';
 import createHttpError from 'http-errors';
+import { updateUserService, refreshTokensService, logoutUserService,decodeToken  } from '../services/userService.js';
 
-// Отримання інформації про поточного користувача
-export const getCurrentUser = async (req, res, next) => {
+
+export const getCurrentUserController = (req, res, next) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        // Отримуємо користувача з об'єкта req, який був попередньо заповнений middleware authenticate
+        const user = req.user;
+
+        // Перевіряємо, що користувач знайдений
         if (!user) {
-            return next(createHttpError(404, 'User not found'));
+            throw createHttpError(401, 'User not authenticated');
         }
-        res.status(200).json(user);
-    } catch (err) {
-        console.error(err.message);
-        next(createHttpError(500, 'Server Error'));
+
+        // Створюємо новий об'єкт користувача без чутливих даних
+        const sanitizedUser = {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            // Додавайте інші поля користувача, які вам потрібні
+        };
+
+        // Відправляємо користувача відповідь
+        res.status(200).json({ user: sanitizedUser });
+    } catch (error) {
+        next(error);
     }
 };
-
-// Оновлення даних авторизованого користувача
-export const updateUser = async (req, res, next) => {
-    const { name, email, gender, weight, activeSportsTime, dailyWaterIntake, avatar } = req.body;
-
-    // Створення об'єкта користувача
-    const userFields = {};
-    if (name) userFields.name = name;
-    if (email) userFields.email = email;
-    if (gender) userFields.gender = gender;
-    if (weight) userFields.weight = weight;
-    if (activeSportsTime) userFields.activeSportsTime = activeSportsTime;
-    if (dailyWaterIntake) userFields.dailyWaterIntake = dailyWaterIntake;
-    if (avatar) userFields.avatar = avatar;
-
-    let avatarUrl = req.body.avatar;
-
-    if (req.file) {
-        try {
-            avatarUrl = await saveFile(req.file);
-            userFields.avatar = avatarUrl; // Додаємо посилання на аватар до userFields
-        } catch (err) {
-            console.error('Error saving file:', err.message);
-            return next(createHttpError(500, 'Error saving avatar'));
-        }
-    }
-
+  
+export const updateUserController = async (req, res) => {
     try {
-        let user = await User.findById(req.user.id);
-
-        if (!user) {
-            return next(createHttpError(404, 'User not found'));
-        }
-
-        // Оновлення користувача
-        user = await User.findByIdAndUpdate(req.user.id, { $set: userFields }, { new: true });
-
-        res.status(200).json(user);
-    } catch (err) {
-        console.error(err.message);
-        next(createHttpError(500, 'Server Error'));
+        console.log('Запит на оновлення інформації про користувача');
+        const userId = decodeToken(req.headers.authorization.split(' ')[1]);
+        console.log('Отриманий userId з токену для оновлення:', userId);
+        const userData = req.body;
+        console.log('Отримані дані користувача для оновлення:', userData);
+        const avatarFile = req.file;
+        console.log('Отриманий файл аватару:', avatarFile);
+        const updatedUser = await updateUserService(userId, userData, avatarFile);
+        res.status(200).json(updatedUser);
+    } catch (error) {
+        console.error('Помилка в контролері оновлення інформації про користувача:', error);
+        res.status(500).json({ message: 'Помилка при оновленні інформації про користувача' });
     }
 };
 
-// Видача нової пари токенів (доступу та оновлення)
-export const refreshTokens = (req, res, next) => {
-    if (!req.user) {
-        return next(createHttpError(401, 'Unauthorized'));
-    }
-
-    const payload = {
-        user: {
-            id: req.user.id
-        }
-    };
-
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }, (err, token) => {
-        if (err) {
-            console.error(err.message);
-            return next(createHttpError(500, 'Error generating token'));
-        }
-        res.status(200).json({ token: `Bearer ${token}` });
-    });
-};
-
-// Логаут користувача
-export const logoutUser = async (req, res, next) => {
+// Контролер для оновлення токенів
+export const refreshTokensController = async (req, res) => {
     try {
-        if (!req.user) {
-            return next(createHttpError(401, 'Unauthorized'));
-        }
+        console.log('Запит на оновлення токенів');
+        const userId = decodeToken(req.headers.authorization.split(' ')[1]);
+        console.log('Отриманий userId з токену для оновлення токенів:', userId);
+        const tokens = refreshTokensService(userId);
+        res.status(200).json(tokens);
+    } catch (error) {
+        console.error('Помилка в контролері оновлення токенів:', error);
+        res.status(500).json({ message: 'Помилка при оновленні токенів' });
+    }
+};
 
-       
-        res.status(200).json({ message: 'Logout successful' });
-    } catch (err) {
-        console.error(err.message);
-        next(createHttpError(500, 'Server Error'));
+// Контролер для виходу користувача
+export const logoutUserController = async (req, res) => {
+    try {
+        console.log('Запит на вихід користувача');
+        const userId = decodeToken(req.headers.authorization.split(' ')[1]);
+        console.log('Отриманий userId з токену для виходу:', userId);
+        await logoutUserService(userId);
+        res.status(200).json({ message: 'Користувач вийшов успішно' });
+    } catch (error) {
+        console.error('Помилка в контролері виходу користувача:', error);
+        res.status(500).json({ message: 'Помилка при виході користувача' });
     }
 };

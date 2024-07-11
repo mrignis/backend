@@ -19,7 +19,7 @@ export const errorHandler = (error, req, res, next) => {
     });
   }
 
-  console.error(error); // Log any other errors to console for debugging
+  console.error(error); 
   res.status(500).json({
     message: 'Something went wrong',
     error: error.message,

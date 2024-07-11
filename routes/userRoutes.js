@@ -1,7 +1,7 @@
 import express from 'express';
-import { registerUser, loginUser } from '../controllers/authController.js';  // Додано імпорти
-import { getCurrentUser, updateUser, refreshTokens, logoutUser } from '../controllers/userController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
+import { registerUser, loginUser } from '../controllers/authController.js';
+import { getCurrentUserController, updateUserController, refreshTokensController, logoutUserController } from '../controllers/userController.js'; // Переконайтеся, що шлях відповідає вашій структурі проекту
+import { authenticate } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -9,12 +9,9 @@ const router = express.Router();
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 
-
-// Приватні ендпоінти, захищені authMiddleware
-router.post('/refresh-tokens',authMiddleware, refreshTokens);
-router.get('/current', authMiddleware, getCurrentUser);
-router.put('/update', authMiddleware, updateUser);
-
-router.post('/logout', authMiddleware, logoutUser);
+router.get('/current', authenticate, getCurrentUserController);
+router.put('/update', authenticate, updateUserController);
+router.post('/refresh-tokens', authenticate, refreshTokensController);
+router.post('/logout', authenticate, logoutUserController);
 
 export default router;

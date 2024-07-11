@@ -1,45 +1,44 @@
-import jwt from 'jsonwebtoken';
+// authMiddleware.js
+
 import createHttpError from 'http-errors';
-import User from '../models/User.js'; // Змініть шлях до моделі користувача на свій
+import { Session } from '../models/Session.js';
+import { tokenValidation } from '../services/jwtService.js';
 
-const JWT_SECRET = 'your_jwt_secret';
-
-// Функція для аутентифікації користувача за токеном
 export const authenticate = async (req, res, next) => {
-  // Отримуємо токен з заголовка Authorization
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const { authorization } = req.headers;
 
-  // Перевіряємо чи токен існує
+  if (!authorization) {
+    return res.status(401).json({ message: 'Not authorized' });
+  }
+
+  const token = authorization.split(' ')[1];
+
   if (!token) {
-    return next(createHttpError(401, 'Access token is missing'));
+    return res.status(401).json({ message: 'Access token is missing' });
   }
 
   try {
-    // Перевіряємо та декодуємо токен
-    const decoded = jwt.verify(token, JWT_SECRET);
+    // Ваша функція для перевірки та отримання інформації з токену
+    const userId = tokenValidation(token);
 
-    // Отримуємо користувача за ID, який міститься у токені
-    const user = await User.findById(decoded.userId);
+    // Знайти сесію за userId
+    const session = await Session.findOne({ userId });
 
-    // Перевіряємо чи користувач знайдений
-    if (!user) {
-      return next(createHttpError(404, 'User not found'));
+    if (!session) {
+      throw new Error('Session not found');
     }
 
-    // Додаємо користувача до об'єкту запиту
-    req.user = user;
+    // Додати дані користувача до запиту
+    req.user = {
+      _id: session.userId,
+      name: session.name, // Припустимо, що ім'я зберігається в сесійному сховищі
+      email: session.email, // Припустимо, що email зберігається в сесійному сховищі
+      // Додайте інші дані користувача, які вам потрібні
+    };
 
-    // Продовжуємо обробку запиту
     next();
   } catch (error) {
-    // Перехоплюємо помилки від jwt.verify
-    if (error.name === 'TokenExpiredError') {
-      return next(createHttpError(401, 'Access token expired'));
-    } else {
-      return next(createHttpError(401, 'Invalid access token'));
-    }
+    console.error('Помилка в перевірці токена:', error.message);
+    return res.status(401).json({ message: 'Invalid access token' });
   }
 };
-
-export default authenticate;
